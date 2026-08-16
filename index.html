@@ -254,77 +254,159 @@
   </div>
 
 <script>
-  // Set this to your deployed Apps Script Web App URL (see setup guide).
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz-jqIreB4XSJnbNcallNvWVuV4NDo_Ti9zcD4xhs1xQ-7WkD1clvDiECcgSoVoLYtk5Q/exec";
 
-  const MAX_SLOTS = {"18+ Novice MD": 8, "18+ Novice WD": 8, "18+ Novice XD": 8, "18+ Low Intermediate MD": 8, "18+ Low Intermediate WD": 8, "18+ Low Intermediate XD": 8, "18+ High Intermediate MD": 8, "18+ High Intermediate WD": 8, "18+ High Intermediate XD": 8, "18+ Advanced MD": 5, "18+ Advanced WD": 5, "18+ Advanced XD": 5, "35+ Low Intermediate MD": 8, "35+ Low Intermediate WD": 8, "35+ Low Intermediate XD": 8, "35+ High Intermediate MD": 5, "35+ High Intermediate WD": 5, "35+ High Intermediate XD": 5, "35+ Advanced MD": 5, "35+ Advanced WD": 5, "35+ Advanced XD": 5, "50+ Intermediate MD": 5, "50+ Intermediate WD": 5, "50+ Intermediate XD": 5};
+  const MAX_SLOTS = {
+    "18+ Novice MD": 8, "18+ Novice WD": 8, "18+ Novice XD": 8,
+    "18+ Low Intermediate MD": 8, "18+ Low Intermediate WD": 8, "18+ Low Intermediate XD": 8,
+    "18+ High Intermediate MD": 8, "18+ High Intermediate WD": 8, "18+ High Intermediate XD": 8,
+    "18+ Advanced MD": 5, "18+ Advanced WD": 5, "18+ Advanced XD": 5,
+    "35+ Low Intermediate MD": 8, "35+ Low Intermediate WD": 8, "35+ Low Intermediate XD": 8,
+    "35+ High Intermediate MD": 5, "35+ High Intermediate WD": 5, "35+ High Intermediate XD": 5,
+    "35+ Advanced MD": 5, "35+ Advanced WD": 5, "35+ Advanced XD": 5,
+    "50+ Intermediate MD": 5, "50+ Intermediate WD": 5, "50+ Intermediate XD": 5
+  };
 
-  function markFull(select, counts) {
+  function markFull(select, availability) {
     const note = document.getElementById('availabilityNote');
     let anyClosed = false;
+
     Array.from(select.options).forEach(opt => {
       if (!opt.value) return;
-      const max = parseInt(opt.dataset.max, 10);
-      const used = counts[opt.value] || 0;
-      const baseLabel = opt.dataset.baseLabel || opt.textContent;
+
+      const fallbackMax = parseInt(opt.dataset.max, 10) || MAX_SLOTS[opt.value] || 0;
+      const data = availability[opt.value];
+
+      let used = 0;
+      let max = fallbackMax;
+      let remaining = fallbackMax;
+
+      if (data && typeof data === "object") {
+        used = Number(data.used || 0);
+        max = Number(data.max || fallbackMax);
+        remaining = Math.max(Number(data.remaining ?? (max - used)), 0);
+      } else if (typeof data === "number") {
+        used = Number(data);
+        remaining = Math.max(max - used, 0);
+      }
+
+      const baseLabel = opt.dataset.baseLabel ||
+        opt.textContent.replace(/\s+—\s+(FULL|\d+\s+slots?\s+remaining)$/i, '');
+
       opt.dataset.baseLabel = baseLabel;
-      if (used >= max) {
+
+      if (remaining <= 0) {
         opt.disabled = true;
         opt.textContent = baseLabel + " — FULL";
         anyClosed = true;
       } else {
         opt.disabled = false;
-        opt.textContent = baseLabel;
+        opt.textContent = baseLabel + " — " + remaining +
+          (remaining === 1 ? " slot remaining" : " slots remaining");
       }
     });
+
     note.textContent = anyClosed
       ? "Live slot count loaded — categories marked FULL are closed."
-      : "Live slot count loaded — all categories currently open.";
+      : "Live slot count loaded — remaining slots shown for each category.";
   }
 
   function refreshAvailability() {
     const select = document.getElementById('categorySelect');
     const note = document.getElementById('availabilityNote');
-    if (SCRIPT_URL.startsWith("REPLACE")) {
-      note.textContent = "Demo mode: connect SCRIPT_URL to show live slot availability.";
-      return;
-    }
-    fetch(SCRIPT_URL + "?action=counts")
-      .then(r => r.json())
-      .then(counts => markFull(select, counts))
-      .catch(() => { note.textContent = "Could not load live availability — showing all categories."; });
+    note.textContent = "Checking live slot availability...";
+
+    fetch(SCRIPT_URL + "?action=counts&ts=" + Date.now(), {
+      method: "GET",
+      cache: "no-store"
+    })
+      .then(r => {
+        if (!r.ok) throw new Error("Availability request failed.");
+        return r.json();
+      })
+      .then(data => {
+        if (data.status === "error") throw new Error(data.message || "Could not load availability.");
+        markFull(select, data);
+      })
+      .catch(error => {
+        console.error("Availability error:", error);
+        note.textContent = "Could not load live availability. Please refresh the page.";
+      });
   }
 
   refreshAvailability();
 
+  document.getElementById('categorySelect').addEventListener('focus', refreshAvailability);
+
   document.getElementById('regForm').addEventListener('submit', function (e) {
     e.preventDefault();
+
     const status = document.getElementById('formStatus');
-    if (SCRIPT_URL.startsWith("REPLACE")) {
-      status.style.color = "#EF4E98";
-      status.textContent = "Demo mode: connect SCRIPT_URL to your Google Apps Script to actually save responses.";
-      return;
-    }
-    const formData = new FormData(e.target);
+    const submitButton = document.querySelector('button.submit');
+    const selectedCategory = document.getElementById('categorySelect').value;
+
+    submitButton.disabled = true;
     status.style.color = "#5B5B5B";
-    status.textContent = "Submitting...";
-    fetch(SCRIPT_URL, { method: "POST", body: formData })
-      .then(r => r.json())
+    status.textContent = "Checking slot availability...";
+
+    fetch(SCRIPT_URL + "?action=counts&ts=" + Date.now(), {
+      method: "GET",
+      cache: "no-store"
+    })
+      .then(r => {
+        if (!r.ok) throw new Error("Could not check availability.");
+        return r.json();
+      })
+      .then(availability => {
+        const selected = availability[selectedCategory];
+
+        if (selected && Number(selected.remaining) <= 0) {
+          status.style.color = "#EF4E98";
+          status.textContent = "Sorry — " + selectedCategory + " is already FULL.";
+          refreshAvailability();
+          return null;
+        }
+
+        status.textContent = "Submitting...";
+        return fetch(SCRIPT_URL, {
+          method: "POST",
+          body: new FormData(e.target)
+        });
+      })
+      .then(r => {
+        if (!r) return null;
+        if (!r.ok) throw new Error("Registration request failed.");
+        return r.json();
+      })
       .then(res => {
+        if (!res) return;
+
         if (res.status === "full") {
           status.style.color = "#EF4E98";
           status.textContent = "Sorry — that category just filled up. Please pick another.";
           refreshAvailability();
-        } else {
+        } else if (res.status === "success") {
           status.style.color = "#C81F6E";
-          status.textContent = "Thank you! Your registration has been received.";
+          status.textContent = res.full
+            ? "Registration received! " + res.category + " is now FULL."
+            : "Thank you! Your registration has been received. " +
+              res.category + " has " + res.remaining +
+              (res.remaining === 1 ? " slot remaining." : " slots remaining.");
+
           e.target.reset();
           refreshAvailability();
+        } else {
+          status.style.color = "#EF4E98";
+          status.textContent = res.message || "Something went wrong. Please try again.";
         }
       })
-      .catch(() => {
+      .catch(error => {
+        console.error("Registration error:", error);
         status.style.color = "#EF4E98";
         status.textContent = "Something went wrong. Please try again.";
+      })
+      .finally(() => {
+        submitButton.disabled = false;
       });
   });
 </script>
