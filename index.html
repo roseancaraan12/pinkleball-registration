@@ -44,6 +44,21 @@
   table.slots tr:nth-child(even) td { background: var(--pink-pale); }
   table.slots tr:last-child td { font-weight: 700; background: var(--pink-light); color: var(--pink-deep); }
 
+  /* Live slot status: black when no teams have registered, pink when
+     at least one team has registered in that category. */
+  table.slots td.slot-registered {
+    color: var(--pink);
+    font-weight: 700;
+  }
+  table.slots td.slot-empty {
+    color: #111;
+    font-weight: 700;
+  }
+  table.slots td.slot-full {
+    color: var(--pink-deep);
+    font-weight: 800;
+  }
+
   label.field-label { display: block; font-weight: 600; font-size: 14px; color: var(--ink); margin: 18px 0 6px; }
   label.field-label .req { color: var(--pink); }
   label.field-label:first-of-type { margin-top: 0; }
@@ -305,13 +320,27 @@
       const remaining = Number(data.remaining);
       const max = Number(data.max);
 
+      const used = Number(data.used || 0);
+
       cell.textContent = remaining + "/" + max;
       cell.title = data.full
         ? "FULL"
         : remaining + " of " + max + " slots remaining";
 
-      cell.style.fontWeight = "700";
-      cell.style.opacity = data.full ? "0.55" : "1";
+      // No registration yet = black.
+      // At least one registered team = pink.
+      // Full category = deeper pink.
+      cell.classList.remove("slot-empty", "slot-registered", "slot-full");
+
+      if (data.full) {
+        cell.classList.add("slot-full");
+      } else if (used > 0) {
+        cell.classList.add("slot-registered");
+      } else {
+        cell.classList.add("slot-empty");
+      }
+
+      cell.style.opacity = "1";
     });
   }
 
