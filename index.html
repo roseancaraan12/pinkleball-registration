@@ -108,17 +108,17 @@
     <div class="card">
       <h2><span class="num">i</span>Categories &amp; Slot Limits</h2>
       <p class="desc">Each slot is one team (2 members: MD/WD/XD doubles pair). Registration is first-come, first-served — a category automatically closes once its team slots are full.</p>
-      <table class="slots">
+      <table class="slots" id="slotTable">
         <tr><th>Age Bracket</th><th>Category</th><th>MD</th><th>WD</th><th>XD</th></tr>
-        <tr><td>18+</td><td>Novice</td><td>8</td><td>8</td><td>8</td></tr>
-        <tr><td>18+</td><td>Low Intermediate</td><td>8</td><td>8</td><td>8</td></tr>
-        <tr><td>18+</td><td>High Intermediate</td><td>8</td><td>8</td><td>8</td></tr>
-        <tr><td>18+</td><td>Advanced</td><td>5</td><td>5</td><td>5</td></tr>
-        <tr><td>35+</td><td>Low Intermediate</td><td>8</td><td>8</td><td>8</td></tr>
-        <tr><td>35+</td><td>High Intermediate</td><td>5</td><td>5</td><td>5</td></tr>
-        <tr><td>35+</td><td>Advanced</td><td>5</td><td>5</td><td>5</td></tr>
-        <tr><td>50+</td><td>Intermediate</td><td>5</td><td>5</td><td>5</td></tr>
-        <tr><td colspan="2">TOTAL</td><td>52</td><td>52</td><td>52</td></tr>
+        <tr><td>18+</td><td>Novice</td><td id="slot-18-novice-md">8/8</td><td id="slot-18-novice-wd">8/8</td><td id="slot-18-novice-xd">8/8</td></tr>
+        <tr><td>18+</td><td>Low Intermediate</td><td id="slot-18-low-md">8/8</td><td id="slot-18-low-wd">8/8</td><td id="slot-18-low-xd">8/8</td></tr>
+        <tr><td>18+</td><td>High Intermediate</td><td id="slot-18-high-md">8/8</td><td id="slot-18-high-wd">8/8</td><td id="slot-18-high-xd">8/8</td></tr>
+        <tr><td>18+</td><td>Advanced</td><td id="slot-18-advanced-md">5/5</td><td id="slot-18-advanced-wd">5/5</td><td id="slot-18-advanced-xd">5/5</td></tr>
+        <tr><td>35+</td><td>Low Intermediate</td><td id="slot-35-low-md">8/8</td><td id="slot-35-low-wd">8/8</td><td id="slot-35-low-xd">8/8</td></tr>
+        <tr><td>35+</td><td>High Intermediate</td><td id="slot-35-high-md">5/5</td><td id="slot-35-high-wd">5/5</td><td id="slot-35-high-xd">5/5</td></tr>
+        <tr><td>35+</td><td>Advanced</td><td id="slot-35-advanced-md">5/5</td><td id="slot-35-advanced-wd">5/5</td><td id="slot-35-advanced-xd">5/5</td></tr>
+        <tr><td>50+</td><td>Intermediate</td><td id="slot-50-intermediate-md">5/5</td><td id="slot-50-intermediate-wd">5/5</td><td id="slot-50-intermediate-xd">5/5</td></tr>
+        <tr><td colspan="2">TOTAL CAPACITY</td><td>52</td><td>52</td><td>52</td></tr>
       </table>
     </div>
 
@@ -267,7 +267,57 @@
     "50+ Intermediate MD": 5, "50+ Intermediate WD": 5, "50+ Intermediate XD": 5
   };
 
+  function updateSlotTable(availability) {
+    const tableMap = {
+      "18+ Novice MD": "slot-18-novice-md",
+      "18+ Novice WD": "slot-18-novice-wd",
+      "18+ Novice XD": "slot-18-novice-xd",
+      "18+ Low Intermediate MD": "slot-18-low-md",
+      "18+ Low Intermediate WD": "slot-18-low-wd",
+      "18+ Low Intermediate XD": "slot-18-low-xd",
+      "18+ High Intermediate MD": "slot-18-high-md",
+      "18+ High Intermediate WD": "slot-18-high-wd",
+      "18+ High Intermediate XD": "slot-18-high-xd",
+      "18+ Advanced MD": "slot-18-advanced-md",
+      "18+ Advanced WD": "slot-18-advanced-wd",
+      "18+ Advanced XD": "slot-18-advanced-xd",
+      "35+ Low Intermediate MD": "slot-35-low-md",
+      "35+ Low Intermediate WD": "slot-35-low-wd",
+      "35+ Low Intermediate XD": "slot-35-low-xd",
+      "35+ High Intermediate MD": "slot-35-high-md",
+      "35+ High Intermediate WD": "slot-35-high-wd",
+      "35+ High Intermediate XD": "slot-35-high-xd",
+      "35+ Advanced MD": "slot-35-advanced-md",
+      "35+ Advanced WD": "slot-35-advanced-wd",
+      "35+ Advanced XD": "slot-35-advanced-xd",
+      "50+ Intermediate MD": "slot-50-intermediate-md",
+      "50+ Intermediate WD": "slot-50-intermediate-wd",
+      "50+ Intermediate XD": "slot-50-intermediate-xd"
+    };
+
+    Object.keys(tableMap).forEach(category => {
+      const cell = document.getElementById(tableMap[category]);
+      if (!cell) return;
+
+      const data = availability[category];
+      if (!data) return;
+
+      const remaining = Number(data.remaining);
+      const max = Number(data.max);
+
+      cell.textContent = remaining + "/" + max;
+      cell.title = data.full
+        ? "FULL"
+        : remaining + " of " + max + " slots remaining";
+
+      cell.style.fontWeight = "700";
+      cell.style.opacity = data.full ? "0.55" : "1";
+    });
+  }
+
   function markFull(select, availability) {
+    updateSlotTable(availability);
+
     const note = document.getElementById('availabilityNote');
     let anyClosed = false;
 
